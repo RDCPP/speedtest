@@ -6,11 +6,13 @@
 
 #IncludeRegexTransform: 
 
-/home/rdcpp/Desktop/etc/test/main.c
+/home/rdcpp/Desktop/etc/speedtest/type_test/main.c
 stdio.h
 -
 stdlib.h
 -
 time.h
+-
+pthread.h
 -
 

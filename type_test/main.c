@@ -1,63 +1,76 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
+#define ITER_TIME 100 // counting fastest type
 #define TEST_TIME 100 // testing 10000*10000 times (plz use less than 32767)
+#define NS_S 1000000000.0 // ns to s
 
-long ns_diff(struct timespec start, struct timespec end);
-int compare(const void *first, const void *second);
+// struct
 
 typedef struct Benchmark_Type{
     char type_name[10];
     long type_time;
 }BT;
 
+// function
+
+long ns_diff(struct timespec start, struct timespec end);
+int compare(const void *first, const void *second);
+
+void *test_int(void *);
+void *test_short(void *);
+void *test_long(void *);
+
+const char *correct_ordinal(int);
+
+void print_result(BT[3]);
+void avg_result(BT[3]);
+
 int main(void) {
-    BT bench[3] = {{"int" , 0},
-                  {"short", 0},
-                  {"long",  0}};
-    struct timespec int_start,int_end;
-    struct timespec short_start,short_end;
-    struct timespec long_start,long_end;
-    clock_gettime(CLOCK_MONOTONIC,&int_start);
-    for(int i = 0;i<TEST_TIME;i++){
-        for(int j = 0;j<10000;j++){
-            for(int k = 0;k<10000;k++){
-                int l = i + j + k;
-            }
+    pthread_t threads[3];
+
+    BT avg_bench[3] = {{"int",   0},
+                       {"short", 0},
+                       {"long",  0}};
+
+    for (int i = 1; i <= ITER_TIME; i++) {
+
+        const char *co = correct_ordinal(i);
+
+        printf("----------%d%s test start----------\n",i,co);
+
+        BT bench[3] = {{"int",   0},
+                       {"short", 0},
+                       {"long",  0}};
+
+        pthread_create(&threads[0],NULL,test_int,&bench[0]);
+        pthread_create(&threads[1],NULL,test_short,&bench[1]);
+        pthread_create(&threads[2],NULL,test_long,&bench[2]);
+
+        for (int j = 0; j < 3; j++) {
+            pthread_join(threads[j],NULL);
+            printf("%s test complete\n",bench[j].type_name);
         }
+
+        avg_bench[0].type_time += bench[0].type_time;
+        avg_bench[1].type_time += bench[1].type_time;
+        avg_bench[2].type_time += bench[2].type_time;
+
+        qsort(bench, 3, sizeof(BT), compare);
+
+        print_result(bench);
     }
-    clock_gettime(CLOCK_MONOTONIC,&int_end);
-    bench[0].type_time = ns_diff(int_start,int_end);
-    clock_gettime(CLOCK_MONOTONIC,&short_start);
-    for(short s = 0;s<TEST_TIME;s++){
-        for(short t = 0;t<10000;t++){
-            for(short u = 0;u<10000;u++){
-                short v = s + t + u;
-            }
-        }
-    }
-    clock_gettime(CLOCK_MONOTONIC,&short_end);
-    bench[1].type_time = ns_diff(short_start,short_end);
-    clock_gettime(CLOCK_MONOTONIC,&long_start);
-    for(long o = 0;o<TEST_TIME;o++){
-        for(long p = 0;p<10000;p++){
-            for(long q = 0;q<10000;q++){
-                long r = o + p + q;
-            }
-        }
-    }
-    clock_gettime(CLOCK_MONOTONIC,&long_end);
-    bench[2].type_time = ns_diff(long_start,long_end);
-    qsort(bench,3, sizeof(BT),compare);
-    printf("1st : %s (%ld ns.)\n",bench[0].type_name,bench[0].type_time);
-    printf("2nd : %s (%ld ns.)\n",bench[1].type_name,bench[1].type_time);
-    printf("3rd : %s (%ld ns.)\n",bench[2].type_name,bench[2].type_time);
+
+    printf("----------all test finished----------\n");
+
+    avg_result(avg_bench);
+
     return 0;
 }
 
-long ns_diff(struct timespec start, struct timespec end)
-{
+long ns_diff(struct timespec start, struct timespec end){
     struct timespec temp;
     if ((end.tv_nsec-start.tv_nsec)<0) {
         temp.tv_sec = end.tv_sec-start.tv_sec-1;
@@ -76,4 +89,81 @@ int compare(const void *first, const void *second){
     if(p1->type_time > p2->type_time) return 1;
     else if (p1->type_time < p2->type_time) return -1;
     else return 0;
+}
+
+void *test_int(void *param) {
+    BT *bench = (BT *)param;
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < TEST_TIME; i++) {
+        for (int j = 0; j < 10000; j++) {
+            for (int k = 0; k < 10000; k++) {
+                int l = i + j + k;
+            }
+        }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    bench->type_time = ns_diff(start, end);
+    pthread_exit(param);
+}
+
+void *test_short(void *param) {
+    BT *bench = (BT *)param;
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (short i = 0; i < TEST_TIME; i++) {
+        for (short j = 0; j < 10000; j++) {
+            for (short k = 0; k < 10000; k++) {
+                short l = i + j + k;
+            }
+        }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    bench->type_time = ns_diff(start, end);
+    pthread_exit(param);
+}
+
+void *test_long(void *param) {
+    BT *bench = (BT *)param;
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (long i = 0; i < TEST_TIME; i++) {
+        for (long j = 0; j < 10000; j++) {
+            for (long k = 0; k < 10000; k++) {
+                long l = i + j + k;
+            }
+        }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    bench->type_time = ns_diff(start, end);
+    pthread_exit(param);
+}
+
+const char *correct_ordinal(int i){
+    if (i%10 == 1 && i%100 != 11) return "st";
+    else if (i%10 == 2 && i%100 != 12) return "nd";
+    else if (i%10 == 3 && i%100 != 13) return "rd";
+    else return "th";
+}
+
+void print_result(BT bench[3]){
+    printf("\n<Result>\n");
+
+    printf("1st : %s => %ld ns. (%.3lf s.)\n",bench[0].type_name,bench[0].type_time,bench[0].type_time/NS_S);
+    printf("2nd : %s => %ld ns. (%.3lf s.)\n",bench[1].type_name,bench[1].type_time,bench[1].type_time/NS_S);
+    printf("3rd : %s => %ld ns. (%.3lf s.)\n",bench[2].type_name,bench[2].type_time,bench[2].type_time/NS_S);
+}
+
+void avg_result(BT avg_bench[3]){
+    avg_bench[0].type_time /= ITER_TIME;
+    avg_bench[1].type_time /= ITER_TIME;
+    avg_bench[2].type_time /= ITER_TIME;
+
+    qsort(avg_bench, 3, sizeof(BT), compare);
+
+    printf("\n[Average Result]\n");
+
+    printf("1st : %s => %ld ns. (%.3lf s.)\n",avg_bench[0].type_name,avg_bench[0].type_time,avg_bench[0].type_time/NS_S);
+    printf("2nd : %s => %ld ns. (%.3lf s.)\n",avg_bench[1].type_name,avg_bench[1].type_time,avg_bench[1].type_time/NS_S);
+    printf("3rd : %s => %ld ns. (%.3lf s.)\n",avg_bench[2].type_name,avg_bench[2].type_time,avg_bench[2].type_time/NS_S);
 }

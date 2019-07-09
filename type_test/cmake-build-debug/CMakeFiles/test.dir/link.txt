@@ -1,1 +1,1 @@
-/usr/bin/cc -g   CMakeFiles/test.dir/main.c.o  -o test 
+/usr/bin/cc  -pthread -g   CMakeFiles/test.dir/main.c.o  -o test 
