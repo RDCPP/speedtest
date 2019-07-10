@@ -23,3 +23,9 @@
 ### 4. Result
 
 ![result](./../test_screenshot/type_test.png)
+
+- "int" is faster than "short" and "long."
+- The difference between "int" and "short": 1 second on average.
+- The difference between "int" and "long": 0.1 second on average.
+- (Additional result: "long" is faster than "short".)
+- Conclusion will write later.
